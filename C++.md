@@ -1187,6 +1187,484 @@ ps：数组的地址一般来说会稳定递增，但是有可能因为前面释
 
 
 
+#### deque（双端数组）
+
+支持快速随机访问，由于deque需要处理内部跳转，速度上没有vector快
+
+1、deque的存储结构
+
+采用分段式存储，由多个固定大小的内存块组成。此外有一个指针数组用于管理这些块的地址，类似于索引表。另有头指针和尾指针标价首尾。
+
+2、扩容策略
+
+重新分配一个块，并更新指针数组（map array），调整back指针。当指针数组页满时进行两倍扩容。
+
+3、访问速度
+
+首先找到元素对应的块，再计算偏移量。因为多了一次间接寻址，因此deque的访问速度稍慢于vector
+
+
+
+#### stack && queue
+
+栈和队列以deque为底层架构，通过deque执行具体操作
+
+
+
+#### heap && priority_queue
+
+heap（堆）是一种数据结构，priority_queuq（优先级队列）是基于堆实现的STL容器，比heap更易用，提供push（），pop（）操作
+
+|                | `heap`                           | `priority_queue`         |
+| -------------- | -------------------------------- | ------------------------ |
+| **实现**       | 适用于 `vector`                  | 独立容器                 |
+| **默认类型**   | **最大堆**                       | **最大堆**               |
+| **最小堆方式** | `std::greater<T>`                | `std::greater<T>`        |
+| **访问堆顶**   | `vec.front()`                    | `pq.top()`               |
+| **删除堆顶**   | `std::pop_heap() + pop_back()`   | `pq.pop()`               |
+| **插入元素**   | `push_back() + std::push_heap()` | `pq.push()`              |
+| **适用场景**   | **需要定制存储和排序的场景**     | **更易用，适合任务调度** |
+
+
+
+#### map&&set的区别和实现原理
+
+| 特性           | `map`（映射表）                                          | `set`（集合）                                            |
+| -------------- | -------------------------------------------------------- | -------------------------------------------------------- |
+| **存储结构**   | **键值对（Key-Value）**                                  | **单值集合（Key Only）**                                 |
+| **键的唯一性** | **键（Key）唯一**                                        | **元素唯一**                                             |
+| **值的访问**   | `map[key]` 获取 `value`                                  | 只能遍历 `set` 查找元素                                  |
+| **底层实现**   | **红黑树 (`std::map`)，或哈希表 (`std::unordered_map`)** | **红黑树 (`std::set`)，或哈希表 (`std::unordered_set`)** |
+| **适用场景**   | 需要**键值映射**                                         | 需要**存储唯一元素，并支持快速查找**                     |
+
+
+
+#### 红黑树与哈希表的区别
+
+红黑树：
+
+一种自平衡的二叉搜索树，通过旋转和变色维持平衡。
+
+哈希表：
+
+一种基于数组+hash函数的数据结构
+
+使用hash函数将key映射到数组索引
+
+| 特性               | **红黑树 (`map/set`)**                     | **哈希表 (`unordered_map/unordered_set`)** |
+| ------------------ | ------------------------------------------ | ------------------------------------------ |
+| **底层数据结构**   | **红黑树（BST）**                          | **哈希表（Hash Table）**                   |
+| **有序性**         | **有序（支持 `begin()` 递增遍历）**        | **无序**                                   |
+| **插入时间复杂度** | **O(log n)**                               | **O(1)（平均），O(n)（最坏）**             |
+| **删除时间复杂度** | **O(log n)**                               | **O(1)（平均），O(n)（最坏）**             |
+| **查找时间复杂度** | **O(log n)**                               | **O(1)（平均），O(n)（最坏）**             |
+| **范围查询**       | **支持（有序存储，可用 `lower_bound()`）** | **不支持（无序存储）**                     |
+| **适合场景**       | **排序、范围查询**（如排名、区间统计）     | **快速查找**（如缓存、字典）               |
+
+总结：红黑树的插入、删除、查询复杂度较稳定，适用于有序集合。哈希表的查询速度较快，适用于无序集合的快速查找
+
+
+
+#### 哈希冲突
+
+1、哈希表搜索的核心步骤
+
+（1）使用哈希函数计算哈希值
+
+（2）用哈希值%数组大小计算索引
+
+（3）直接访问索引，如果没有哈希冲突，快速确定目标元素
+
+（4）如果产生哈希冲突，遍历桶内的链表/数组
+
+2、处理哈希冲突
+
+（1）链地址法：每一个桶是一个链表，查找元素时需要遍历链表，最坏情况O(n)，一般情况O(1)
+
+（2）开放寻址法：如果索引被占用，那么搜索下一个没有被占用的索引（线性探测/二次探测）
+
+线性探测：(index + 1) % size
+
+二次探测：(index + i^2) % size
+
+（3）双哈希法：如果桶已满，那么使用另一个hash函数联合计算新的偏移量：(hash1(key) + i *hash2(key)) % size
+
+
+
+#### push_back()和emplace_back()的区别
+
+push_back()和emplace_back()都是在容器末尾添加元素的方法，但是底层机制和性能有一定差异
+
+push：需要一个已经构造好的对象，再将其拷贝/移动到容器
+
+emplace：直接在容器内构造对象
+
+| **适用情况**                  | **`push_back()`**                       | **`emplace_back()`**                |
+| ----------------------------- | --------------------------------------- | ----------------------------------- |
+| **已有对象 `a` 需要存入容器** | ✅ **使用 `push_back(a)`**               | 🚫 不能 `emplace_back(a)`            |
+| **直接传入值 `A(10)`**        | 🚫 先创建再拷贝/移动                     | ✅ **直接在容器内构造**              |
+| **需要传递多个构造参数**      | 🚫 需先创建对象，再 `push_back(A(x, y))` | ✅ **直接传递 `emplace_back(x, y)`** |
+
+总结：如果添加一个基础类型的元素，两种方法没有区别，如果添加复杂元素则emplace更优
+
+
+
+## C++新特性
+
+
+
+#### 智能指针
+
+智能指针是一种自动管理内存的指针，避免手动delete造成的数据泄露。封装了原始指针(T*)，提供自动释放机制，减少内存泄漏相关错误
+
+详情见C++内存管理->什么是智能指针？有哪些种类
+
+
+
+#### 类型推导
+
+一种自动推断变量或表达式类型的机制，减少手动指定类型需要，使代码更简洁、泛型更强大
+
+1、auto（变量类型推断）
+
+```c++
+auto x = 42;            // x 被推导为 int
+auto y = 3.14;          // y 被推导为 double
+auto str = "hello";     // str 被推导为 const char* ，也就是字符的首字符地址，但是不能修改地址上的内容
+```
+
+auto不能用于：
+
+```
+auto a;  // ❌ 编译错误！必须初始化，否则无法推导类型
+void func(auto x) {} // ❌ 错误，不能用于普通函数参数
+```
+
+
+
+2、decltype（表达式类型推导）
+
+```c++
+#include <iostream>
+
+int main() {
+    int x = 42;
+    decltype(x) y = 3.14;  // y 具有和 x 一样的类型（int）
+
+    decltype(42.5 + x) z;  // z 推导为 double
+
+    std::cout << typeid(z).name() << std::endl; // 打印 z 的类型
+    return 0;
+}
+```
+
+3、auto与decltype配合
+
+```c++
+int x = 100;
+
+auto getValue() { return x; }         // 返回 int（值传递）
+decltype(auto) getValueRef() { return (x); } // 返回 int&（引用）
+
+int main() {
+    getValue() = 200;   // ❌ 修改的是拷贝，x 仍然是 100
+    getValueRef() = 200; // ✅ 修改 x
+
+    std::cout << "x: " << x << std::endl;
+    return 0;
+}
+
+```
+
+
+
+#### 右值引用
+
+
+
+1、首先解释什么是**左右值**：
+
+左值：在等号左侧的、生命周期较长的变量
+
+右值：在等号右侧的、生命周期短的临时对象/表达式
+
+简单来说就是，能使用 '&' 取地址的对象是左值，不能使用 '&' 取地址的是右值
+
+
+
+2、左值引用
+
+为了减少参数传递过程中的拷贝产生的花销
+
+例子：
+
+```c++
+vector<int> grid(10, 0);
+void fun(vector<int> &grid){}	//这里就是直接引用grid向量，减少传参复制grid向量的消耗
+```
+
+例外：const左值引用可以指向右值
+
+```c++
+const int &ref_a = 5;	//编译通过
+```
+
+const左值引用不会修改指向值，因此可以指向右值
+
+实际例子：
+
+```c++
+void push_back(const value_type& val);
+```
+
+如果没有const，就不能使用vec.push_back(5);这样的代码了
+
+
+
+3、右值引用
+
+意义：减少右值参数传递过程中的拷贝花费，并且能够修改这些右值
+
+例子：
+
+```c++
+int &&ref_a_right = 5;	//ok
+int a = 5;
+int &&ref_a_left = a;	//编译失败，右值不能指向左值
+ref_a_right = 6;	//右值引用的用途，可以修改右值
+```
+
+
+
+4、右值能指向左值吗？
+
+方法：std::move()
+
+```c++
+int a = 5; // a是个左值
+int &ref_a_left = a; // 左值引用指向左值
+int &&ref_a_right = std::move(a); // 通过std::move将左值转化为右值，可以被右值引用指向
+ 
+cout << a; // 打印结果：5
+```
+
+move()的唯一功能是，将左值强制转换为右值，右值强制转换为左值
+
+
+
+5、声明出来的左值引用、右值引用本身是左值还是右值？
+
+被声明出来的左右值都是左值，因为被声明出来的左右值引用都是有地址的，也位于等号左侧
+
+```c++
+// 形参是个右值引用
+void change(int&& right_value) {
+    right_value = 8;
+}
+ 
+int main() {
+    int a = 5; // a是个左值
+    int &ref_a_left = a; // ref_a_left是个左值引用
+    int &&ref_a_right = std::move(a); // ref_a_right是个右值引用
+ 
+    change(a); // 编译不过，a是左值，change参数要求右值
+    change(ref_a_left); // 编译不过，左值引用ref_a_left本身也是个左值
+    change(ref_a_right); // 编译不过，右值引用ref_a_right本身也是个左值
+     
+    change(std::move(a)); // 编译通过
+    change(std::move(ref_a_right)); // 编译通过
+    change(std::move(ref_a_left)); // 编译通过
+ 
+    change(5); // 当然可以直接接右值，编译通过
+     
+    cout << &a << ' ';
+    cout << &ref_a_left << ' ';
+    cout << &ref_a_right;
+    // 打印这三个左值的地址，都是一样的
+}
+```
+
+总结：
+
+左右值引用没有区别，都能避免拷贝
+
+右值引用可以直接指向右值，也可以通过std::move()指向左值，（const左值引用也能指向右值）
+
+作为函数形参，右值引用更灵活（const左值引用无法修改值，有局限性）
+
+
+
+#### 右值引用的应用场景
+
+1、移动语义
+
+主要应用在拷贝构造函数上
+
+```c++
+ Array(const Array& temp_array) {
+        size_ = temp_array.size_;
+        data_ = new int[size_];
+        for (int i = 0; i < size_; i ++) {
+            data_[i] = temp_array.data_[i];
+        }
+    }
+     
+    // 深拷贝赋值
+    Array& operator=(const Array& temp_array) {
+        delete[] data_;
+ 
+        size_ = temp_array.size_;
+        data_ = new int[size_];
+        for (int i = 0; i < size_; i ++) {
+            data_[i] = temp_array.data_[i];
+        }
+    }
+```
+
+正常的拷贝还是使用深拷贝。若拷贝完成后，原数组可以丢弃的话，可以使用浅拷贝，降低消耗
+
+```c++
+  Array(Array&& temp_array) {	//使用右值引用的浅拷贝
+        data_ = temp_array.data_;
+        size_ = temp_array.size_;
+        // 为防止temp_array析构时delete data，提前置空其data_      
+        temp_array.data_ = nullptr;
+    }
+```
+
+实例：vector::push_back()使用std::move()提高性能
+
+```c++
+// 例2：std::vector和std::string的实际例子
+int main() {
+    std::string str1 = "aacasxs";
+    std::vector<std::string> vec;
+     
+    vec.push_back(str1); // 传统方法，copy
+    vec.push_back(std::move(str1)); // 调用移动语义的push_back方法，避免拷贝，str1会失去原有值，变成空字符串
+    vec.emplace_back(std::move(str1)); // emplace_back效果相同，str1会失去原有值
+    vec.emplace_back("axcsddcas"); // 当然可以直接接右值
+}
+ 
+// std::vector方法定义
+void push_back (const value_type& val);
+void push_back (value_type&& val);
+ 
+void emplace_back (Args&&... args);
+```
+
+
+
+2、完美转发 std::forward()
+
+forward的作用是做左右值类型转化
+
+std::forward<T>(u)有两个参数：T与 u。 a. 当T为左值引用类型时，u将被转换为T类型的左值； b. 否则u将被转换为T类型右值。
+
+```c++
+void change2(int&& ref_r) {
+    ref_r = 1;
+}
+ 
+void change3(int& ref_l) {
+    ref_l = 1;
+}
+ 
+// change的入参是右值引用
+// 有名字的右值引用是 左值，因此ref_r是左值
+void change(int&& ref_r) {
+    change2(ref_r);  // 错误，change2的入参是右值引用，需要接右值，ref_r是左值，编译失败
+     
+    change2(std::move(ref_r)); // ok，std::move把左值转为右值，编译通过
+    change2(std::forward<int &&>(ref_r));  // ok，std::forward的T是右值引用类型(int &&)，符合条件b，因此u(ref_r)会被转换为右值，编译通过
+     
+    change3(ref_r); // ok，change3的入参是左值引用，需要接左值，ref_r是左值，编译通过
+    change3(std::forward<int &>(ref_r)); // ok，std::forward的T是左值引用类型(int &)，符合条件a，因此u(ref_r)会被转换为左值，编译通过
+    // 可见，forward可以把值转换为左值或者右值
+}
+ 
+int main() {
+    int a = 5;
+    change(std::move(a));
+}
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
