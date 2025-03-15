@@ -1591,57 +1591,378 @@ int main() {
 
 
 
+#### nullptr
+
+nullptr相比于旧标准的NULL提供了更清晰安全的语义
+
+传统标准中NULL的本质是0，作为空指针常量使用是可能被误认为整数，导致函数重载时产生歧义
+
+而引入nullptr可以明确表示指针类型，nullptr能转化为任何类型的指针，而不会转化成整数
 
 
 
+#### 范围for循环
+
+基于范围的迭代写法，for表达式对于容器的每一个元素进行操作
+
+```c++
+for (元素类型 元素名 : 容器或范围) {
+    // 循环体
+}
+```
 
 
 
+#### 列表初始化
+
+C++定义了⼏种初始化⽅式，例如对⼀个int变量 x初始化为0： 
+
+```c++
+int x = 0;      
+int x = {0};    
+int x{0};       
+int x(0);       
+```
+
+采⽤花括号来进⾏初始化称为列表初始化，⽆论是初始化对象还是为对象赋新值。   
+
+⽤于对内置类型变量时，如果使⽤列表初始化，且初始值存在丢失信息⻛险时，编译器会报错。
+
+```c++
+long double d = 3.1415926536; 
+int a = {d};    //存在丢失信息⻛险，转换未执⾏。
+int a = d;      //确实丢失信息，转换执⾏。
+```
 
 
 
+#### lambda表达式
+
+lambda表达式是一种匿名函数，允许用户在代码中定义短小临时的匿名函数
+
+表达式的一般形式：
+
+```c++
+[capture-list](parameters) -> return_type { function_body };
+```
+
+`[]`（捕获列表）：定义 lambda 表达式可访问的外部变量。
+
+`()`（参数列表）：定义传递给 lambda 的参数。
+
+`->`（可选的返回类型）：指定函数返回类型，通常自动推断。
+
+`{}`（函数体）：函数具体执行的代码。
+
+**1、捕获列表(可空)**
+
+lambda在默认情况下不能访问外部变量，如果想访问，必须明确捕获
+
+捕获列表的形式：
+
+值捕获表示复制一个变量的值等于外部变量的值，引用捕获表示直接对外部变量进行操作
+
+- `[=]`：值捕获所有外部变量。
+- `[&]`：引用捕获所有外部变量。
+- `[var]`：值捕获特定变量。
+- `[&var]`：引用捕获特定变量。
+
+混合捕获：
+
+```c++
+int a = 1, b = 2;
+
+// 按值捕获a，引用捕获b
+auto f = [a, &b]() {
+    // a 是值捕获，不可修改外部a；b 是引用捕获，可修改
+    std::cout << a << " " << ++b << std::endl;
+};
+
+f();  // 输出 1, b=2
+std::cout << b; // b被修改，输出 2
+```
+
+mutable关键字（不常用）
+
+用于取消捕获列表中参数的常属性，捕获列表中的参数一般默认为常数，不可改变
+
+```c++
+[]()mutable->returntype{}	//mutalbe的位置
+```
+
+所以说 `mutable` 关键字不常用，因为它取消的是值类型的常性，即使修改了，对外部也没有什么意义，如果想修改，直接使用引用捕捉 就好了 
 
 
 
+**2、参数列表（可省略）**
+
+定义lambda接受的参数，与普通函数的参数列表相同：
+
+lambda调用时传递的参数
+
+只能来自函数调用时显式传入
+
+例如：
+
+```c++
+auto lambda = [](int x, int y) {
+    return x + y;
+};
+lambda(3, 5); // 参数3和5传入 lambda
+```
 
 
 
+**3、lambda表达式的常见用法**
+
+Lambda表达式在和STL标准库算法配合使用时特别方便，比如配合`std::sort`：
+
+```c++
+std::vector<int> nums = {5, 2, 8, 1, 3};
+
+// 降序排序
+std::sort(nums.begin(), nums.end(), [](int a, int b) { return a > b; });
+```
+
+作为函数对象或回调函数使用
+
+```c++
+#include <algorithm>
+
+std::vector<int> v{1, 2, 3};
+std::for_each(v.begin(), v.end(), [](int n){
+    std::cout << n << " ";
+});
+// 输出: 1 2 3
+```
 
 
 
+### C++多线程
+
+（简单情况下）C++多线程使用多个函数实现各自功能，然后将不同函数生成不同线程，并同时执行这些线程（不同线程可能存在一定程度的执行先后顺序，但总体上可以看做同时执行）。
 
 
 
+#### 多线程基础
+
+1、创建线程
+（1）使用thread创建线程
+
+```c++
+#include <thread>
+#include <iostream>
+
+void worker() {
+    std::cout << "线程执行中...\n";
+}
+
+int main() {
+    std::thread t(worker); // 创建线程并运行worker函数
+    t.join();              // 等待线程结束
+}
+```
+
+（2）使用lambda
+
+```c++
+std::thread t([](){
+    std::cout << "线程运行中" << std::endl;
+});
+t.join();
+```
+
+2、结束线程
+
+- 当线程启动后，一定要在和线程相关联的thread销毁前，确定以何种方式等待线程执行结束。C++11有两种方式来等待线程结束：
+
+detach方式：当前代码继续执行，线程自主在后台运行
+
+join方式：等待线程执行完成后，当前代码再执行
 
 
 
+#### 互斥量
+
+互斥量是用于保证多个线程，互斥地使用临界资源(共享资源)的信号量。互斥量保证了同一时刻只被一个进程使用。
+
+程序实例化mutex对象m,线程调用成员函数m.lock()会发生下面 3 种情况
+
+如果该互斥量当前未上锁，则调用线程将该互斥量锁住，直到调用unlock()之前，该线程一直拥有该锁。
+
+如果该互斥量当前被锁住，则调用线程被阻塞,直至该互斥量被解锁。
+
+不推荐实直接去调用成员函数lock()，因为如果忘记unlock()，将导致锁无法释放，使用lock_guard或者unique_lock能避免忘记解锁这种问题。
+
+```c++
+#include<iostream>
+#include<thread>
+#include<mutex>
+using namespace std;
+mutex m;//实例化m对象，不要理解为定义变量
+void proc1(int a)
+{
+    m.lock();
+    cout << "proc1函数正在改写a" << endl;
+    cout << "原始a为" << a << endl;
+    cout << "现在a为" << a + 2 << endl;
+    m.unlock();
+}
+ 
+void proc2(int a)
+{
+    m.lock();
+    cout << "proc2函数正在改写a" << endl;
+    cout << "原始a为" << a << endl;
+    cout << "现在a为" << a + 1 << endl;
+    m.unlock();
+}
+int main()
+{
+    int a = 0;
+    thread proc1(proc1, a);
+    thread proc2(proc2, a);
+    proc1.join();
+    proc2.join();
+    return 0;
+}
+```
+
+1、lock_guard
+
+其原理（RAII一种编程范式）是：声明一个局部的lock_guard对象，在其构造函数中进行加锁，在其析构函数中进行解锁。加锁绑定于对象的创建，解锁绑定于对象的析构，利于栈自动回收临时变量的机制，通过使用{}来调整作用域范围（对象的生命周期），可使得互斥量m在合适的地方被解锁。
+
+```c++
+#include<iostream>
+#include<thread>
+#include<mutex>
+using namespace std;
+mutex m;//实例化m对象，不要理解为定义变量
+void proc1(int a)
+{
+    m.lock();//手动锁定
+    lock_guard<mutex> g1(m,adopt_lock);
+    cout << "proc1函数正在改写a" << endl;
+    cout << "原始a为" << a << endl;
+    cout << "现在a为" << a + 2 << endl;
+}//自动解锁
+ 
+void proc2(int a)
+{
+    lock_guard<mutex> g2(m);//自动锁定
+    cout << "proc2函数正在改写a" << endl;
+    cout << "原始a为" << a << endl;
+    cout << "现在a为" << a + 1 << endl;
+}//自动解锁
+int main()
+{
+    int a = 0;
+    thread proc1(proc1, a);
+    thread proc2(proc2, a);
+    proc1.join();
+    proc2.join();
+    return 0;
+}
+```
+
+2、unique_lock
+
+unique_lock类似于lock_guard,只是unique_lock用法更加丰富，同时支持lock_guard()的原有功能。
+
+使用lock_guard后不能手动lock()与手动unlock();使用unique_lock后可以手动lock()与手动unlock();
+
+unique_lock的第二个参数，除了可以是adopt_lock,还可以是try_to_lock与defer_lock;
+
+try_to_lock: 尝试去锁定，得保证锁处于unlock的状态,然后尝试现在能不能获得锁；尝试用mutx的lock()去锁定这个mutex，但如果没有锁定成功，会立即返回，不会阻塞在那里
+
+defer_lock: 始化了一个没有加锁的mutex;
+
+```c++
+#include<iostream>
+#include<thread>
+#include<mutex>
+using namespace std;
+mutex m;
+void proc1(int a)
+{
+    unique_lock<mutex> g1(m, defer_lock);//始化了一个没有加锁的mutex
+    cout << "不拉不拉不拉" << endl;
+    g1.lock();//手动加锁，注意，不是m.lock();注意，不是m.lock();注意，不是m.lock()
+    cout << "proc1函数正在改写a" << endl;
+    cout << "原始a为" << a << endl;
+    cout << "现在a为" << a + 2 << endl;
+    g1.unlock();//临时解锁
+    cout << "不拉不拉不拉"  << endl;
+    g1.lock();
+    cout << "不拉不拉不拉" << endl;
+}//自动解锁
+ 
+void proc2(int a)
+{
+    unique_lock<mutex> g2(m,try_to_lock);//尝试加锁，但如果没有锁定成功，会立即返回，不会阻塞在那里；
+    cout << "proc2函数正在改写a" << endl;
+    cout << "原始a为" << a << endl;
+    cout << "现在a为" << a + 1 << endl;
+}//自动解锁
+int main()
+{
+    int a = 0;
+    thread proc1(proc1, a);
+    thread proc2(proc2, a);
+    proc1.join();
+    proc2.join();
+    return 0;
+}
+```
 
 
 
+#### 原子操作
 
+原子操作满足：
 
+- 操作不可再拆分成更小的部分。
+- 在多线程环境下，原子操作要么完整执行，要么完全不执行，不会产生“中间状态”。
+- 可以避免数据竞争（data race），因此线程安全。
 
+C++11通过atomic库实现原子操作
 
+```c++
+#include <atomic>
+#include <thread>
+#include <iostream>
 
+std::atomic<int> counter{0};
 
+void increment() {
+    for (int i = 0; i < 100000; ++i) {
+        counter++; // 原子增加，不会造成数据竞争
+    }
+}
 
+int main() {
+    std::thread t1(increment);
+    std::thread t2(increment);
 
+    t1.join();
+    t2.join();
 
+    std::cout << "counter = " << counter << std::endl; // 必然是200000
+}
+```
 
+原子操作与互斥锁的区别：
 
+| 区别         | `std::atomic` 原子操作 | 互斥锁 (`std::mutex`) |
+| ------------ | ---------------------- | --------------------- |
+| 性能         | 更高效                 | 相对较低              |
+| 适用范围     | 简单数据类型、简单操作 | 较复杂的临界区操作    |
+| 是否阻塞线程 | 非阻塞（无锁）         | 会阻塞线程等待锁      |
+| 使用复杂性   | 简单                   | 复杂                  |
 
+推荐在性能敏感、高并发、简单共享变量场景下优先使用原子操作。
 
-
-
-
-
-
-
-
-
-
-
-
+对复杂数据结构、复杂临界区，仍需使用互斥锁（mutex）等机制。
 
 
 
